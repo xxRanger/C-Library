@@ -1,5 +1,5 @@
 //
-//  HashMap.c
+//  hashmap.c
 //  C-library
 //
 //  Created by anxin on 2018/11/17.
@@ -10,32 +10,32 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <string.h>
-#include "HashMap.h"
+#include "hashmap.h"
 #define MIN(A,B) ({ __typeof__(A) __a=(A); __typeof__(B) __b=(B); __a<__b ? __a:__b;})
 
 //HashTable function
-HashMap* HashMap_New(void) {
-    HashMap*ht = (HashMap*) malloc(sizeof(HashMap));
+hashmap* hashmap_new(void) {
+    hashmap*ht = (hashmap*) malloc(sizeof(hashmap));
     ht->cap = DEFAULT_INITIAL_CAPACITY;
     ht->load_factor = DEFAULT_LOAD_FACTOR;
     ht->threshold = ht->cap * ht->load_factor;
     ht->len = 0;
-    ht->tab = (HashNode **)malloc(ht->cap*sizeof(HashNode*));
-    memset(ht->tab, 0 ,ht->cap*sizeof(HashNode*));
+    ht->tab = (hashnode **)malloc(ht->cap*sizeof(hashnode*));
+    memset(ht->tab, 0 ,ht->cap*sizeof(hashnode*));
     return ht;
 };
 
-void HashMap_Destroy(HashMap* self) {
+void hashmap_destroy(hashmap* self) {
     for(int i=0; i<self->cap; ++i) {
         if(self->tab[i]){
-            HashNode_Destroy(self->tab[i]);
+            hashnode_destroy(self->tab[i]);
         }
     }
     free(self->tab);
     free(self);
 }
 
-int HashMap_MapSizeFor(int cap){
+int hashmap_map_size_for(int cap){
     int n = cap - 1;
     n |= n >> 1;
     n |= n >> 2;
@@ -45,20 +45,20 @@ int HashMap_MapSizeFor(int cap){
     return n<0?1:n>=MAXIMUM_CAPACITY?MAXIMUM_CAPACITY:n+1;
 };
 
-void HashMap_Resize(HashMap* self) {
+void hashmap_resize(hashmap* self) {
     if(!self) {
-        self = HashMap_New();
+        self = hashmap_new();
     } else if(self->len>=self->threshold){
         int new_cap = self->cap << 1;
         if(new_cap <= MAXIMUM_CAPACITY){
-            HashNode** new_tab =(HashNode **)malloc(new_cap*sizeof(HashNode*));
-            memset(new_tab,0,new_cap*sizeof(HashNode*));
+            hashnode** new_tab =(hashnode **)malloc(new_cap*sizeof(hashnode*));
+            memset(new_tab,0,new_cap*sizeof(hashnode*));
             for(int i=0;i<self->cap;++i) {
                 if(!self->tab[i]) {
                     continue;
                 }
-                HashNode *lo = new_tab[i];
-                HashNode *hi = new_tab[i+self->cap];
+                hashnode *lo = new_tab[i];
+                hashnode *hi = new_tab[i+self->cap];
                 while(lo&&lo->next){
                     lo = lo->next;
                 }
@@ -66,7 +66,7 @@ void HashMap_Resize(HashMap* self) {
                     hi = hi->next;
                 }
                 
-                HashNode *cur = self->tab[i];
+                hashnode *cur = self->tab[i];
                 do {
                     int new_loc = cur->hash & (new_cap - 1);
                     if(new_loc == i) {  //low location
@@ -84,7 +84,7 @@ void HashMap_Resize(HashMap* self) {
                         }
                         hi = cur;
                     }
-                    HashNode* pre = cur;
+                    hashnode* pre = cur;
                     cur = cur->next;
                     pre->next = NULL;
                 } while(cur);
@@ -96,24 +96,24 @@ void HashMap_Resize(HashMap* self) {
     }
 };
 
-void HashMap_Put(HashMap* self, char* key, int value) {
+void hashmap_put(hashmap* self, char* key, int value) {
     // if not enough room for new key, resize
     if(!self) {
-        HashMap_Resize(self);
+        hashmap_resize(self);
     } else if(self->len+1>self->threshold) {
-        HashMap_Resize(self);
+        hashmap_resize(self);
     }
     
-    int loc = (self->cap - 1) & HashNode_Hash(key);
-    HashNode* cur = self->tab[loc];
-    HashNode* to_append = HashNode_New(key,value);
+    int loc = (self->cap - 1) & hashnode_hash(key);
+    hashnode* cur = self->tab[loc];
+    hashnode* to_append = hashnode_new(key,value);
     
     if(!cur) {  //empty list
         self->tab[loc] = to_append;
     } else {
-        HashNode* pre=NULL;
+        hashnode* pre=NULL;
         while(cur) {
-            if(!HashNode_KeyCmp(cur->key,key)){
+            if(!hashnode_cmp(cur->key,key)){
                 cur->value = value;
                 return;
             }
@@ -125,23 +125,23 @@ void HashMap_Put(HashMap* self, char* key, int value) {
     self->len +=1;
 };
 
-void HashMap_Delete(HashMap* self, char* key) {
+void hashmap_delete(hashmap* self, char* key) {
     if(!self) {
         abort();
     }
-    int loc = (self->cap - 1) & HashNode_Hash(key);
+    int loc = (self->cap - 1) & hashnode_hash(key);
     if(!self->tab[loc]){
         abort();
     }
-    HashNode* cur = self->tab[loc];
+    hashnode* cur = self->tab[loc];
     
-    if(!HashNode_KeyCmp(cur->key,key)) {
+    if(!hashnode_cmp(cur->key,key)) {
         self->tab[loc] = cur->next;
     } else {
-        HashNode* pre = cur;
+        hashnode* pre = cur;
         cur = cur->next;
         while(cur){
-            if(!HashNode_KeyCmp(cur->key,key)) {
+            if(!hashnode_cmp(cur->key,key)) {
                 pre->next = cur->next;
                 break;
             }
@@ -158,17 +158,17 @@ void HashMap_Delete(HashMap* self, char* key) {
     }
 };
 
-int HashMap_ContainsKey(HashMap* self, char* key) {
+int hashmap_contains(hashmap* self, char* key) {
     if(!self) {
         return -1;
     }
-    int loc = (self->cap - 1) & HashNode_Hash(key);
+    int loc = (self->cap - 1) & hashnode_hash(key);
     if(!self->tab[loc]){
         return -1;
     }
-    HashNode* cur = self->tab[loc];
+    hashnode* cur = self->tab[loc];
     while(cur){
-        if(!HashNode_KeyCmp(cur->key,key)) {
+        if(!hashnode_cmp(cur->key,key)) {
             return 0;
         }
         cur = cur->next;
@@ -176,17 +176,17 @@ int HashMap_ContainsKey(HashMap* self, char* key) {
     return -1;
 };
 
-int HashMap_GetValue(HashMap*self, char*key) {
+int hashmap_get(hashmap*self, char*key) {
     if(!self) {
         abort();
     }
-    int loc = (self->cap - 1) & HashNode_Hash(key);
+    int loc = (self->cap - 1) & hashnode_hash(key);
     if(!self->tab[loc]){
         abort();
     }
-    HashNode* cur = self->tab[loc];
+    hashnode* cur = self->tab[loc];
     while(cur){
-        if(!HashNode_KeyCmp(cur->key,key)) {
+        if(!hashnode_cmp(cur->key,key)) {
             return cur->value;
         }
         cur = cur->next;
@@ -195,26 +195,26 @@ int HashMap_GetValue(HashMap*self, char*key) {
 }
 
 //Node function
-HashNode* HashNode_New(char *key,int value) {
-    HashNode* node = (HashNode*) malloc(sizeof(HashNode));
+hashnode* hashnode_new(char *key,int value) {
+    hashnode* node = (hashnode*) malloc(sizeof(hashnode));
     size_t len = strlen(key);
     node->key = (char*)malloc(sizeof(char)*len);
     strcpy(node->key,key);
     node->value = value;
-    node->hash = HashNode_Hash(key);
+    node->hash = hashnode_hash(key);
     node->next = NULL;
     return node;
 }
 
-void HashNode_Destroy(HashNode *self) {
+void hashnode_destroy(hashnode *self) {
     while(self) {
-        HashNode *next = self->next;
+        hashnode *next = self->next;
         free(self);
         self = next;
     }
 }
 
-int HashNode_Hash(char *key){
+int hashnode_hash(char *key){
     int hash = 0;
     char *src = key;
     while (*src) {
@@ -224,7 +224,7 @@ int HashNode_Hash(char *key){
     return hash^(hash>>16);
 }
 
-int HashNode_KeyCmp(char*p1, char*p2){
+int hashnode_cmp(char*p1, char*p2){
     char *s1 = p1;
     char *s2 = p2;
     char c1,c2;
